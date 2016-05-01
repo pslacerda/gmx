@@ -18,6 +18,7 @@ from urllib.request import urlretrieve
 CHECKPOINT_FNAME = '.checkpoint'
 MDP_PATH = None
 
+__ALL__ = ["PDB", "MDP", "system"]
 
 def load(fp):
     seq = []
@@ -190,21 +191,3 @@ def system(dir):
 
 PDB = PDBFinder()
 MDP = MDPResource(MDP_PATH)
-
-if __name__ == '__main__':
-    import sys
-    # lines = []
-    #
-    # with open(__file__) as fp:
-    #     for line in fp:
-    #         if line == "if __name__ == '__main__':\n":
-    #             break
-    #         lines.append(line)
-    #
-    # with open(sys.argv[1]) as fp:
-    #     lines.extend(fp.readlines())
-    #
-    # script = open(tempfile.mkstemp()[1])
-    # script.writelines(lines)
-    #
-    # subprocess.call(["python3", script.name])

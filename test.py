@@ -8,6 +8,8 @@
 # import ipdb; ipdb.set_trace()
 # MDP.get_mdp_name('asd')
 
+from gmx import *
+
 with system('2goj-apo'):
     pdb2gmx(
         ff    = 'amber99',

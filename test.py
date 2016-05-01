@@ -1,87 +1,61 @@
-import unittest
-import gmx
-import subprocess
-from unittest import mock
-import os
+# from gmx import system, MDP, PDB
+# from os import mkdir, chdir, path
+#
+# if not path.exists('test'):
+#     mkdir('test')
+# chdir('test')
+#
+# import ipdb; ipdb.set_trace()
+# MDP.get_mdp_name('asd')
 
+with system('2goj-apo'):
+    pdb2gmx(
+        ff    = 'amber99',
+        water = 'spce',
+        f     = PDB['prot'],
+        o     = 'prot.gro',
+        p     = 'topol.top'
+    )
 
-class TestGromacsCommand(unittest.TestCase):
+    editconf(
+        f  = 'prot.gro',
+        o  = 'pbc.gro',
+        bt = 'dodecahedron',
+        d  = 1.4
+    )
 
-    def setUp(self):
-        self.check_all = subprocess.check_call
-        subprocess.check_call = mock.MagicMock()
+    solvate(
+        cp = 'pbc.gro',
+        cs = 'spc216.gro',
+        o  = 'sol.gro',
+        p  = 'topol.top'
+    )
 
-    def tearDown(self):
-        subprocess.check_call = self.check_all
+    grompp(
+        f = MDP['ions.mdp'],
+        c = 'sol.gro',
+        o = 'ions.tpr',
+        p = 'topol.top'
+    )
 
-    def test_build_option(self):
-        cmd = gmx.GromacsCommand('cmd1')
-        self.assertEqual(
-            cmd.build_option('a', 'a'),
-            '-a=a'
-        )
-        self.assertEqual(
-            cmd.build_option('b', 1),
-            '-b=1'
-        )
-        self.assertEqual(
-            cmd.build_option('c', 2.2),
-            '-c=2.2'
-        )
-        self.assertEqual(
-            cmd.build_option('d', True),
-            '-d=1'
-        )
+    genion(
+        s       = 'ions.tpr',
+        o       = 'ions.gro',
+        neutral = 1,
+        p       = "topol.top",
+        stdin   = """
+            SOL
+        """
+    )
 
-    def test_run(self):
+    grompp(
+        f = MDP['sd.mdp'],
+        c = 'ions.gro',
+        o = 'sd.tpr',
+        p = 'topol.top'
+    )
 
-
-        cmd = gmx.GromacsCommand('cmd1', f=1, b=2.2)
-        cmd.run()
-
-        args = subprocess.check_call.call_args[0][0]
-        self.assertEqual(args[:2], ['gmx', 'cmd1'])
-        self.assertEqual(
-            set(args[2:]),
-            set([cmd.build_option(k, v) for k, v in {'f':1, 'b':2.2}.items()])
-        )
-
-    def test_str(self):
-        cmd = gmx.GromacsCommand('cmd1', f=1, b=2.2)
-        self.assertEqual(cmd, gmx.GromacsCommand.from_str(str(cmd)))
-
-    def test_eq(self):
-        self.assertEqual(
-            gmx.GromacsCommand('cmd1', f=1, b=2.2),
-            gmx.GromacsCommand('cmd1', f=1, b=2.2)
-        )
-
-class TestGromacsCheckPointed(unittest.TestCase):
-
-    def setUp(self):
-        self.check_all = subprocess.check_call
-        subprocess.check_call = mock.MagicMock()
-        try:
-            os.remove(gmx.CHECKPOINT_FNAME)
-        except FileNotFoundError:
-            pass
-
-    def tearDown(self):
-        subprocess.check_call = self.check_all
-        os.remove(gmx.CHECKPOINT_FNAME)
-
-    def test_call(self):
-        cpe = gmx.CheckpointedEnvironment()
-        cmd1 = gmx.GromacsCommand('cmd1')
-        cmd2 = gmx.GromacsCommand('cmd2')
-
-        cpe.run_command(cmd1)
-        cpe.run_command(cmd2)
-
-        cmds = (open(gmx.CHECKPOINT_FNAME).readlines())
-        cmds = [c.strip().split('\t') for c in cmds]
-        self.assertListEqual(cmds, [['gmx', 'cmd1'], ['gmx', 'cmd2']])
-
-
-if __name__ == '__main__':
-    unittest.main()
+    mdrun(
+        deffnm = 'sd',
+        v      = True
+    )

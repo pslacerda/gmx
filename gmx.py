@@ -1,84 +1,145 @@
 #!/usr/bin/env python3
 
+# Copyright 2016 Pedro Sousa Lacerda
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import builtins
-import collections
 import os
-import io
 import tempfile
 import json
-import shutil
+import hashlib
 import subprocess
 import textwrap
 
 from os import path
-from glob import glob
 from contextlib import contextmanager
 from urllib.request import urlretrieve
 
-CHECKPOINT_FNAME = '.checkpoint'
-MDP_PATH = None
-
-__ALL__ = ["PDB", "MDP", "system"]
 
 def load(fp):
-    seq = []
-    for cmd in json.load(fp):
-        if cmd[2] == 'mdrun':
-            deffnm = cmd[list.index('-deffnm') + 1]
-            cpi = '%s.cpt' % deffnm
-            gro = '%s.gro' % deffnm
-
-            if path.isfile(cpi) and not path.isfile(gro):
-                cmd.extend(['-cpi', cpi])
-
-            break
-        seq.append(cmd)
-    return seq
+    return [Command(cmd) for cmd in json.load(fp)]
 
 
 def dump(sequence, fp):
     json.dump(sequence, fp)
 
 
-class Command(list):
+def open_resource(name, mode='r'):
+    if not path.isdir('.gmx'):
+        os.mkdir('.gmx')
+    return open(path.join('.gmx', name), mode)
+
+
+class Command(dict):
+
+    def __init__(self, obj):
+        super().__init__(obj)
+        self['stdin'] = textwrap.dedent(self['stdin']).strip()
+
     def run(self):
-        text = textwrap.dedent(self[-1].strip())
-        stdin = tempfile.mkstemp(dir='.')[1]
-        stdin = open(stdin, 'w')
-        stdin.write(text)
-        stdin.close()
-        subprocess.check_call(self[:-1], stdin=open(stdin.name))
+        if self['stdin']:
+            stdin = tempfile.mkstemp(dir='.')[1]
+            with open(stdin, 'w') as stdin:
+                stdin.write(self['stdin'])
+            stdin = open(stdin.name)
+        else:
+            stdin = subprocess.PIPE
+        subprocess.check_call(self['args'], stdin=stdin)
+
+    def __eq__(self, other):
+        return self['stdin'] == other['stdin'] and self['args'] == other['args']
 
 
 class GromacsCommand(Command):
-    def __init__(self, name, iterable):
-        super(['gmx' '-quiet'] + iterable)
 
+    def __init__(self, name, _params):
+        stdin = _params.pop('stdin') if 'stdin' in _params else ''
+        params = []
+        for key in sorted(_params):
+            value = _params[key]
+            if type(value) is bool:
+                value = str(value).lower()
+            if type(value) in [list, tuple]:
+                value = ' '.join(value)
+            params.extend(['-%s' % key, str(value)])
+        super().__init__({
+            'stdin': stdin,
+            'args': ['gmx', '-quiet', name] + params
+        })
 
+    def run(self):
+        if self['args'][2] == 'mdrun' and '-deffnm' in self['args']:
+            deffnm = self['args'][self['args'].index('-deffnm') + 1]
+            cpi = '%s.cpt' % deffnm
+            gro = '%s.gro' % deffnm
 
+            if path.isfile(cpi) and not path.isfile(gro):
+                self['args'].extend(['-cpi', cpi])
+        super().run()
 
 
 class CheckpointedEnvironment:
 
     def __init__(self):
-        self.prev_seqs = []
-        self.curr_step = 0
+        self.prev_cmds = []
+        self.step = 0
         try:
-            self.cp_seqs = load(open(CHECKPOINT_FNAME))
+            self.cp_cmds = load(open_resource('checkpoint'))
         except FileNotFoundError:
-            self.cp_seqs = []
+            self.cp_cmds = []
 
-    def run_sequence(self, seq):
-        self.prev_seqs.append(seq)
+    def run_command(self, cmd):
+        self.prev_cmds.append(cmd)
 
-        if self.curr_step <= len(self.cp_seqs) > 0:
-            if self.cp_seqs[self.curr_step] != self.prev_seqs[self.curr_step]:
-                raise Exception("Checkpoint and script differs")
-            self.curr_step += 1
-            return
+        if self.step < len(self.cp_cmds) > 0:
+            if self.cp_cmds[self.step] != self.prev_cmds[self.step]:
+                raise Exception("Checkpoint and script differ")
+        else:
+            cmd.run()
+            dump(self.prev_cmds, open_resource('checkpoint', 'w'))
+        self.step += 1
 
-        seq.run()
-        dump(self.prev_seqs, open(CHECKPOINT_FNAME, 'w'))
+
+class PrettyCheckpointedEnvironment(CheckpointedEnvironment):
+
+    def __init__(self):
+        super().__init__()
+
+        self.color1 = ''
+        self.color2 = ''
+        self.reset = ''
+        try:
+            def tput(s):
+                out = subprocess.check_output(['tput'] + s.split())
+                return out.decode('ascii')
+
+            if int(tput('colors')) >= 8:
+                self.color1 = (tput('bold') + tput('setaf 3'))
+                self.color2 = (tput('bold') + tput('setaf 4'))
+                self.color3 = tput('setab 5')
+                self.reset = tput('sgr0')
+        except FileNotFoundError:
+            pass
+
+        dir = path.abspath('.')
+        print("%sCheckpointed environment: %s%s" % (self.color1, self.reset, dir))
+
+    def run_command(self, cmd):
+        print("%sCommand:%s %s" % (self.color2, self.reset, ' '.join(cmd['args'])))
+        if cmd['stdin']:
+            print("%sInput  :%s %s" % (self.color2, self.reset, cmd['stdin']))
+        super().run_command(cmd)
 
 
 class FileFinder:
@@ -110,50 +171,67 @@ class PDBFinder(FileFinder):
 
 class MDPResource(FileFinder):
 
-    def get_mdp_name(self, name):
-        if name[-4:] == '.mdp':
-            return name
-        else:
-            return '%s.mdp' % name
-
     def __getitem__(self, item):
         if type(item) is not tuple:
-            return super().__getitem__(self.get_mdp_name(item))
+            return super().__getitem__(item)
 
         name = item[0]
         params = item[1]
-
-        for dir in self.dirs:
-            mdp = path.join(dir, self.get_mdp_name(name))
-            if path.isfile(mdp):
-                break
-        else:
-            raise FileNotFoundError(name)
+        mdp = super().__getitem__(name)
 
         if params == {}:
             return mdp
 
+        for key, value in params.items():
+            if type(value) in [list, tuple]:
+                params[key] = ' '.join(map(str, value))
+            if type(value) is bool:
+                params[key] = str(int(value))
+            if type(value) in [int, float]:
+                params[key] = str(value)
+
+
+        new_mdp = [(k, params[k]) for k in sorted(params)]
+        new_mdp = bytes(mdp+str(new_mdp), encoding='ascii')
+        new_mdp = hashlib.md5(new_mdp).hexdigest()
+        new_mdp = '%s.mdp' % new_mdp
+
+        try:
+            with open_resource(new_mdp) as res:
+                return path.abspath(res.name)
+        except FileNotFoundError:
+            pass
+
         # TODO: try to implement a top section in configparser
-        mdp = shutil.copy(mdp, '.')
-        with open(mdp, 'a') as fp:
-            for key, value in params.items():
-                if isinstance(value, collections.Iterable):
-                    value = ' '.join(map(str, value))
-                if isinstance(value, bool):
-                    value = int(bool)
-                fp.write('%s = %s' % (key, value))
-        return mdp
+        with open_resource(new_mdp, 'w') as fout:
+            with open(mdp) as fin:
+                for line in fin:
+                    line = line[:line.index(';')] if ';' in line else line
+                    line = line.strip()
+                    if not line:
+                        continue
+                    key, _, value = line.partition('=')
+                    key = key.strip()
+
+                    if key in params:
+                        line = "%s = %s\n" % (key, params[key])
+                    else:
+                        line = "%s = %s\n" % (key, value.strip())
+                    fout.write(line)
+        return path.abspath(fout.name)
 
 
-def find_avaliable_commands():
-    cmd_names = {}
-    out = subprocess.check_output(['gmx', 'help', 'commands'],
-                                  stderr=subprocess.DEVNULL)
+def gromacs_command_factory():
+    factories = []
+    out = subprocess.check_output(['gmx', '-quiet', 'help', 'commands'])
     for line in str(out, 'ascii').splitlines()[5:-2]:
         if line[4] != ' ':
             name = line[4:line.index(' ', 4)]
-            cmd_names[name.replace('-', '_')] = name
-    return cmd_names
+            fancy, name  = name.replace('-', '_'), name
+            def command_factory(name=name, **kwargs):
+                return GromacsCommand(name, kwargs)
+            factories.append((fancy, name, command_factory))
+    return factories
 
 
 @contextmanager
@@ -161,33 +239,52 @@ def system(dir):
     prevdir = path.abspath('.')
     try:
         os.mkdir(dir)
-    except (FileExistsError, PermissionError):
+    except FileExistsError:
         pass
     os.chdir(dir)
 
-    builtins.__dict__['MDP'] = MDPResource(MDP_PATH)
-    cpenv = CheckpointedEnvironment()
-
-    cmd_names = find_avaliable_commands()
-    for name in cmd_names:
-        def runner(name=name, **kwargs):
-            cmd = ['gmx', '-quiet', name]
-            for key in sorted(kwargs):
-                if key == 'stdin':
-                    continue
-                cmd.extend(['-%s' % key, '%s' % kwargs[key]])
-            cmd.append(kwargs.pop('stdin', ''))
-            cmd = Command(cmd)
-            cpenv.run_sequence(cmd)
-        builtins.__dict__[name] = runner
+    env = PrettyCheckpointedEnvironment()
+    factories = gromacs_command_factory()
+    for fancy, name, factory in factories:
+        def runner(name=name, factory=factory, **kwargs):
+            cmd = factory(name, **kwargs)
+            env.run_command(cmd)
+        builtins.__dict__[fancy] = runner
 
     yield
 
     os.chdir(prevdir)
-    del builtins.__dict__['MDP']
-    for name in cmd_names:
-        del builtins.__dict__[name]
+    for fancy, _, _ in factories:
+        del builtins.__dict__[fancy]
 
+
+
+__ALL__ = ["PDB", "MDP", "system"]
 
 PDB = PDBFinder()
-MDP = MDPResource(MDP_PATH)
+MDP = MDPResource()
+
+for fancy, name, factory in gromacs_command_factory():
+    def runner(name=name, **kwargs):
+        cmd = Command({
+            'args': ['gmx', '-quiet', name],
+            'stdin': kwargs.pop('stdin', '')
+        })
+        cmd.run()
+        builtins.__dict__[fancy] = runner
+        __ALL__.append(fancy)
+
+if __name__ == '__main__':
+    import sys
+
+    script = open(tempfile.mkstemp()[0], 'w')
+    for line in open(__file__).readlines():
+        if line == "if __name__ == '__main__':\n":
+            break
+        script.write(line)
+    script.write("from gmx import *\n")
+    for line in open(sys.argv[1]):
+        script.write(line)
+    script.close()
+    subprocess.call(['python3', script])
+

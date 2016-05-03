@@ -1,0 +1,33 @@
+;
+; Molecular dynamic
+;   
+;   2016, Pedro Sousa Lacerda <pslacerda+gmx@gmail.com>
+;
+
+
+;; O que fazer e por quantas etapas
+integrator  = md
+nsteps      = 0
+dt          = 0.002
+
+;; Controle de saída (escreva a cada 2 ps)
+nstxtcout   = 1000
+nstlog      = 1000
+nstenergy   = 0
+nstxout     = 0
+nstvout     = 0
+nstfout     = 0
+
+;; Miscelânea
+constraints     = all-bonds ; all bonds (even heavy atom-H bonds) constrained
+pbc             = xyz       ; PBC (yes/no) ??
+
+;; Como encontrar vizinhos e calcular interações
+ns_type     = grid    ; método para determinar lista de vizinhos
+rlist       = 1.4     ; cutoff para vizinhos em forças de curto alcance
+
+coulombtype = PME     ; tratamento para forças de longo alcance
+rcoulomb    = 1.4     ; cutoff para estas forças
+
+vdwtype     = cut-off ; tratamento para VdW de longo alcance
+rvdw        = 1.4     ; cut-off para VdW

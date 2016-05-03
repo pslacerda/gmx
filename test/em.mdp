@@ -1,0 +1,30 @@
+;
+; Energy minimization
+;
+;   2016, Pedro Sousa Lacerda <pslacerda+gmx@gmail.com>
+;
+
+;; O que fazer e por quantas etapas
+integrator  = steep  ; minimização
+emtol       = 10.0   ; parar em emtol kJ/mol
+nsteps      = 10000  ; máximo de iterações
+
+;; Controle de saída (escreva a cada 500 passos)
+nstenergy   = 1000          ; energias
+nstxtcout   = 1000          ; coordenadas no xtc
+nstlog      = 1000          ; log
+nstxout     = 0             ; coordenadas
+nstvout     = 0             ; velocidades
+nstfout     = 0             ; forças
+
+;; Como encontrar vizinhos e calcular interações
+ns_type     = grid    ; método para determinar lista de vizinhos
+rlist       = 1.4     ; cutoff para vizinhos em forças de curto alcance
+pbc         = xyz     ; PBC (yes/no) ??
+
+coulombtype = PME     ; tratamento para forças de longo alcance
+rcoulomb    = 1.4     ; cutoff para estas forças
+
+vdwtype     = cut-off ; tratamento para VdW de longo alcance
+rvdw        = 1.4     ; cut-off para VdW
+

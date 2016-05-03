@@ -74,7 +74,6 @@ with system('1AKI'):
     )
     mdrun(deffnm = 'cg')
 
-"""
     # Position restrained molecular dynamics
     grompp(
         f = MDP['md.mdp', {
@@ -101,4 +100,3 @@ with system('1AKI'):
         p = 'topol.top'
     )
     mdrun(deffnm = 'md')
-"""

@@ -1,6 +1,7 @@
 test/*/
 .idea/
 .venv/
+MANIFEST
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

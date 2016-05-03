@@ -4,14 +4,14 @@ _Simple checkpointed Gromacs scripting framework for Python_
 
 There are some libraries around there that wraps gromacs commands to easy its usage
 (e.g. [GromacsWrapper](http://gromacswrapper.readthedocs.io/)). This one isn't a library, it's a framework. `gmxscript`was
-designed to allow non-programmers and entry level programmers to do reproducible science with Gromacs scripts.
+designed to allow programmers and non-programmers to do reproducible science writting Gromacs scripts.
 
 
 ```python
     from gmxscript import *
     
     # Enters in the checkpointed lysozyme/ directory, any command you run inside it is checkpointed
-    # If you rerun this script, previously launched commands isn't started again
+    # If you rerun this script, previously launched commands aren't started again
     with system('1AKI'):
     
         # Generate topology

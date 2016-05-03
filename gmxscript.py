@@ -27,6 +27,20 @@ from contextlib import contextmanager
 from urllib.request import urlretrieve
 
 
+if 'GMXPREFIX' not in os.environ:
+    vars = ['GMXPREFIX', 'GMXBIN', 'GMXLDLIB', 'GMXMAN', 'GMXDATA',
+           'GROMACS_DIR', 'LD_LIBRARY_PATH', 'MANPATH', 'PKG_CONFIG_PATH',
+            'GROMACS_DIR', 'PATH']
+    args = ['bash', '-c', ". /usr/local/gromacs/bin/GMXRC && echo %s" %
+            '\t'.join(['$%s' % v for v in vars])]
+
+    out = subprocess.check_output(args)
+    out = str(out, encoding='ascii').strip().split()
+
+    for key, value in zip(vars, out):
+        os.environ[key] = value
+
+
 def load(fp):
     return [Command(cmd) for cmd in json.load(fp)]
 

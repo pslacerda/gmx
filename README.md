@@ -4,9 +4,17 @@ _Simple checkpointed Python scripting framework for Gromacs_
 
 There are some libraries around there wrapping gromacs commands (e.g.
 [GromacsWrapper](http://gromacswrapper.readthedocs.io/)). This one isn't a
-library, it's a framework. `gmxscript`was designed to allow programmers and
+library, it's a framework. **`gmxscript`** was designed to help programmers and
 non-programmers to do reproducible science with Gromacs.
 
+## Instalation and Usage
+
+Enter `pip3 gmxscript` at your command line, but first you may need to install
+Python 3.4 or higher. You also must have installed an working copy of Gromacs 5
+or higher. **`gmxscript`** tries to detect the Gromacs installation automatically
+, but if it fails you need to `source GMXRC` as usual. Supposing that you have
+the following sample in a file called `protocol.py`, run the script with
+`python3 protocol.py`.
 
 ```python
     from gmxscript import *

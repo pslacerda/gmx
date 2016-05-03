@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from distutils.core import setup
 
-VERSION = '1'
+VERSION = '2'
 setup(
     name = 'gmxscript',
     version = VERSION,
@@ -10,5 +10,5 @@ setup(
     author_email = 'pslacerda+gmx@gmail.com',
     url = 'https://github.com/pslacerda/gmx',
     download_url = 'https://github.com/pslacerda/gmx/tarball/%s' % VERSION,
-    py_modules = ['gmx'],
+    py_modules = ['gmxscript'],
  )

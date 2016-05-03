@@ -2,9 +2,9 @@
 _Simple checkpointed Gromacs scripting framework for Python_
 
 
-There are some libraries around there that wraps gromacs commands to easy the usage
+There are some libraries around there that wraps gromacs commands to easy its usage
 (e.g. [GromacsWrapper](http://gromacswrapper.readthedocs.io/)). This one isn't a library, it's a framework. `gmxscript`was
-designed to allow non-programmers and entry level programmers to write Gromacs scripts.
+designed to allow non-programmers and entry level programmers to do reproducible science with Gromacs scripts.
 
 
 ```python

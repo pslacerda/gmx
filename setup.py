@@ -3,7 +3,7 @@ from distutils.core import setup
 
 VERSION = '1'
 setup(
-    name = 'gmx',
+    name = 'gmxscript',
     version = VERSION,
     description = 'Gromacs scripting framework',
     author = 'Pedro Sousa Lacerda',

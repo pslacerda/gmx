@@ -4,7 +4,7 @@
 # Sample molecular dynamics protocol
 #
 
-from gmx import *
+from gmxscript import *
 
 with system('1AKI'):
 

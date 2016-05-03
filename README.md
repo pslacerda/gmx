@@ -1,19 +1,23 @@
 # gmxscript
-_Simple checkpointed Gromacs scripting framework for Python_
+_Simple checkpointed Python scripting framework for Gromacs_
 
 
-There are some libraries around there wrapping gromacs commands (e.g. [GromacsWrapper](http://gromacswrapper.readthedocs.io/)). This one isn't a library, it's a framework. `gmxscript`was designed to allow programmers and non-programmers to do reproducible science with Gromacs.
+There are some libraries around there wrapping gromacs commands (e.g.
+[GromacsWrapper](http://gromacswrapper.readthedocs.io/)). This one isn't a
+library, it's a framework. `gmxscript`was designed to allow programmers and
+non-programmers to do reproducible science with Gromacs.
 
 
 ```python
     from gmxscript import *
     
-    # Enters in the checkpointed lysozyme/ directory, any command you run inside it is checkpointed
-    # If you rerun this script, previously launched commands aren't started again
+    # Enters in the checkpointed lysozyme/ directory, any command you run inside
+    # it is checkpointed. If you rerun this script, previously launched commands
+    # aren't started again
     with system('1AKI'):
     
-        # Generate topology
-        # the PDB file is downloaded automatically if not found in parent directories
+        # Generate topology. The PDB file is downloaded automatically if not
+        # found in parent directories
         pdb2gmx(
             ff    = 'gromos54a7',
             water = 'spce',
@@ -30,8 +34,9 @@ There are some libraries around there wrapping gromacs commands (e.g. [GromacsWr
             d  = 1.4
         )
         
-        # Minimize energy using the steep descent algorithm
-        # The .mdp file is looked up in parent directories and has these parameters added or modified
+        # Minimize energy using the steep descent algorithm. The .mdp file is
+        # looked up in parent directories and has these parameters added or 
+        # modified
         grompp(
             f = MDP['em.mdp', {
                 'integrator': 'steep',
@@ -43,5 +48,8 @@ There are some libraries around there wrapping gromacs commands (e.g. [GromacsWr
             p = 'topol.top'
         )
         
+        # If there is a checkpoint file (.cpt) and the simulation wasn't 
+        # finished (i.e. there isn't a .gro file), then the simulation is 
+        # restarted. But it works only if you provides the -deffnm option here.
         mdrun(deffnm = 'sd')
 ```

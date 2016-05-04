@@ -6,4 +6,5 @@ test $CURR_VERSION -gt $PREV_VERSION        &&
     git tag $CURR_VERSION                   &&
     git push --tags                         &&
     python3 setup.py register -r pypi       &&
-    python3 setup.py sdist upload -r pypi
+    python3 setup.py sdist upload -r pypi   &&
+    sed -i "s/VERSION =.*/VERSION = \'$CURR_VERSION\'/" setup.py

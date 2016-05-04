@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from distutils.core import setup
 
-VERSION = '4'
+VERSION = open('VERSION').readline()[:-1]
 setup(
     name = 'gmxscript',
     version = VERSION,

@@ -15,15 +15,16 @@
 # limitations under the License.
 
 import builtins
-import os
-import tempfile
-import json
+import itertools
 import hashlib
+import json
+import os
 import subprocess
+import tempfile
 import textwrap
 
-from os import path
 from contextlib import contextmanager
+from os import path
 from urllib.request import urlretrieve
 
 
@@ -81,16 +82,22 @@ class GromacsCommand(Command):
         stdin = _params.pop('stdin') if 'stdin' in _params else ''
         params = []
         for key in sorted(_params):
-            value = _params[key]
-            if type(value) is bool:
-                value = str(value).lower()
-            if type(value) in [list, tuple]:
-                value = ' '.join(value)
-            params.extend(['-%s' % key, str(value)])
+            params.append('-%s' % key)
+            params.extend(self.convert_param(_params[key]))
+
         super().__init__({
             'stdin': stdin,
             'args': ['gmx', '-quiet', name] + params
         })
+
+    def convert_param(self, param):
+        if type(param) is bool:
+            return [str(param).lower()]
+        elif type(param) in [list, tuple]:
+            params = (self.convert_param(p) for p in param)
+            return itertools.chain.from_iterable(params)
+        else:
+            return [str(param)]
 
     def run(self):
         if self['args'][2] == 'mdrun' and '-deffnm' in self['args']:
@@ -204,7 +211,6 @@ class MDPResource(FileFinder):
             if type(value) in [int, float]:
                 params[key] = str(value)
 
-
         new_mdp = [(k, params[k]) for k in sorted(params)]
         new_mdp = bytes(mdp+str(new_mdp), encoding='ascii')
         new_mdp = hashlib.md5(new_mdp).hexdigest()
@@ -216,7 +222,6 @@ class MDPResource(FileFinder):
         except FileNotFoundError:
             pass
 
-        # TODO: try to implement a top section in configparser
         with open_resource(new_mdp, 'w') as fout:
             with open(mdp) as fin:
                 for line in fin:
@@ -238,7 +243,7 @@ class MDPResource(FileFinder):
 def gromacs_command_factory():
     factories = []
     out = subprocess.check_output(['gmx', '-quiet', 'help', 'commands'])
-    for line in str(out, 'ascii').splitlines()[5:-2]:
+    for line in str(out, 'ascii').splitlines()[5:-1]:
         if line[4] != ' ':
             name = line[4:line.index(' ', 4)]
             fancy, name  = name.replace('-', '_'), name
@@ -273,7 +278,7 @@ def system(dir):
 
 
 
-__ALL__ = ["PDB", "MDP", "system"]
+__all__ = ["PDB", "MDP", "system"]
 
 PDB = PDBFinder()
 MDP = MDPResource()
@@ -281,13 +286,11 @@ MDP = MDPResource()
 
 for fancy, name, factory in gromacs_command_factory():
     def runner(name=name, **kwargs):
-        cmd = Command({
-            'args': ['gmx', '-quiet', name],
-            'stdin': kwargs.pop('stdin', '')
-        })
+        cmd = GromacsCommand(name, kwargs)
         cmd.run()
-        builtins.__dict__[fancy] = runner
-        __ALL__.append(fancy)
+    globals()[fancy] = runner
+    __all__.append(fancy)
+
 
 if __name__ == '__main__':
     import sys
@@ -302,4 +305,3 @@ if __name__ == '__main__':
         script.write(line)
     script.close()
     subprocess.call(['python3', script])
-

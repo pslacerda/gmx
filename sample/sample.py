@@ -1,9 +1,5 @@
 #!/usr/bin/python3
 
-#
-# Sample molecular dynamics protocol
-#
-
 from gmxscript import *
 
 with system('1AKI'):
@@ -91,9 +87,13 @@ with system('1AKI'):
     # Molecular dynamics
     grompp(
         f = MDP['md.mdp', {
-            'steps'       : 25000,
+            'steps'       : 250000,
             'continuation': True,
-            'gen_vel'     : False
+            'gen_vel'     : False,
+            'tcoupl'      : 'V-rescale',
+            'tc_grps'     : ['Protein', 'Non-protein'],
+            'tau_t'       : [0.1, 0.1],
+            'ref_t'       : [298, 298]
         }],
         c = 'mdposres.gro',
         o = 'md.tpr',

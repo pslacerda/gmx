@@ -14,7 +14,8 @@ to install Python 3.4 or higher. You also must have installed an working copy of
 Gromacs 5 or higher. **`gmxscript`** tries to detect the Gromacs installation
 automatically, but if it fails you need to `source GMXRC` as usual. Supposing
 that you have the following sample in a file called `protocol.py`, run the
-script with `python3 protocol.py`.
+script with `python3 protocol.py`. Please take a look at a [more comprehensive
+example](sample/sample.py).
 
 ```python
     from gmxscript import *
